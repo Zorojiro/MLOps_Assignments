@@ -5,3 +5,6 @@ scikit-learn
 matplotlib
 plotly
 transformers
+fastapi
+uvicorn
+pydantic
