@@ -9,7 +9,7 @@ from datetime import datetime
 
 # Add the parent directory to path to import the SalesDataProcessor
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from python.sales_processor import SalesDataProcessor
+from sales_processor import SalesDataProcessor
 
 # Set page configuration
 st.set_page_config(
