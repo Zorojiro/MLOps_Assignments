@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Marketing Prediction</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <style>
+        .prediction-result {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .yes-prediction {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .no-prediction {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .feature-group {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .header-section {
+            background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .probability-bar {
+            height: 24px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="container">
+            <h1 class="display-4">Bank Marketing Prediction</h1>
+            <p class="lead">Predict if a customer will subscribe to a term deposit based on marketing data.</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <!-- Form Section -->
+            <div class="col-lg-8">
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Customer Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="predictionForm">
+                            <!-- Personal Information -->
+                            <div class="feature-group">
+                                <h5>Personal Information</h5>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="age" class="form-label">Age</label>
+                                        <input type="number" class="form-control" id="age" name="age" value="40" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="job" class="form-label">Job</label>
+                                        <select class="form-select" id="job" name="job" required>
+                                            <option value="admin.">Admin</option>
+                                            <option value="blue-collar" selected>Blue-collar</option>
+                                            <option value="entrepreneur">Entrepreneur</option>
+                                            <option value="housemaid">Housemaid</option>
+                                            <option value="management">Management</option>
+                                            <option value="retired">Retired</option>
+                                            <option value="self-employed">Self-employed</option>
+                                            <option value="services">Services</option>
+                                            <option value="student">Student</option>
+                                            <option value="technician">Technician</option>
+                                            <option value="unemployed">Unemployed</option>
+                                            <option value="unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="marital" class="form-label">Marital Status</label>
+                                        <select class="form-select" id="marital" name="marital" required>
+                                            <option value="divorced">Divorced</option>
+                                            <option value="married" selected>Married</option>
+                                            <option value="single">Single</option>
+                                            <option value="unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="education" class="form-label">Education</label>
+                                        <select class="form-select" id="education" name="education" required>
+                                            <option value="basic.4y" selected>Basic (4y)</option>
+                                            <option value="basic.6y">Basic (6y)</option>
+                                            <option value="basic.9y">Basic (9y)</option>
+                                            <option value="high.school">High School</option>
+                                            <option value="professional.course">Professional Course</option>
+                                            <option value="university.degree">University Degree</option>
+                                            <option value="unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Financial Information -->
+                            <div class="feature-group">
+                                <h5>Financial Information</h5>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="default" class="form-label">Default?</label>
+                                        <select class="form-select" id="default" name="default" required>
+                                            <option value="no" selected>No</option>
+                                            <option value="yes">Yes</option>
+                                            <option value="unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="housing" class="form-label">Housing Loan?</label>
+                                        <select class="form-select" id="housing" name="housing" required>
+                                            <option value="no">No</option>
+                                            <option value="yes" selected>Yes</option>
+                                            <option value="unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="loan" class="form-label">Personal Loan?</label>
+                                        <select class="form-select" id="loan" name="loan" required>
+                                            <option value="no" selected>No</option>
+                                            <option value="yes">Yes</option>
+                                            <option value="unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="balance" class="form-label">Balance</label>
+                                        <input type="number" class="form-control" id="balance" name="balance" value="1500" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Information -->
+                            <div class="feature-group">
+                                <h5>Contact Information</h5>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="contact" class="form-label">Contact Type</label>
+                                        <select class="form-select" id="contact" name="contact" required>
+                                            <option value="cellular">Cellular</option>
+                                            <option value="telephone" selected>Telephone</option>
+                                            <option value="unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="month" class="form-label">Month</label>
+                                        <select class="form-select" id="month" name="month" required>
+                                            <option value="jan">January</option>
+                                            <option value="feb">February</option>
+                                            <option value="mar">March</option>
+                                            <option value="apr">April</option>
+                                            <option value="may" selected>May</option>
+                                            <option value="jun">June</option>
+                                            <option value="jul">July</option>
+                                            <option value="aug">August</option>
+                                            <option value="sep">September</option>
+                                            <option value="oct">October</option>
+                                            <option value="nov">November</option>
+                                            <option value="dec">December</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="day" class="form-label">Day</label>
+                                        <input type="number" min="1" max="31" class="form-control" id="day" name="day" value="15" required>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="duration" class="form-label">Duration (seconds)</label>
+                                        <input type="number" class="form-control" id="duration" name="duration" value="250" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Campaign Information -->
+                            <div class="feature-group">
+                                <h5>Campaign Information</h5>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="campaign" class="form-label">Campaign Contacts</label>
+                                        <input type="number" class="form-control" id="campaign" name="campaign" value="1" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="pdays" class="form-label">Days since last contact</label>
+                                        <input type="number" class="form-control" id="pdays" name="pdays" value="999" required>
+                                        <small class="text-muted">999 means client was not previously contacted</small>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="previous" class="form-label">Previous contacts</label>
+                                        <input type="number" class="form-control" id="previous" name="previous" value="0" required>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="poutcome" class="form-label">Previous campaign outcome</label>
+                                        <select class="form-select" id="poutcome" name="poutcome" required>
+                                            <option value="failure">Failure</option>
+                                            <option value="nonexistent" selected>Nonexistent</option>
+                                            <option value="success">Success</option>
+                                            <option value="unknown">Unknown</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg">Predict Subscription</button>
+                            </div>
+                        </form>
+
+                        <!-- Loading indicator -->
+                        <div class="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Processing your request...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Section -->
+            <div class="col-lg-4">
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Prediction Result</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="predictionResult" class="prediction-result">
+                            <h4 id="resultTitle" class="mb-3">Prediction Results</h4>
+                            <p id="resultText" class="lead"></p>
+                            <hr>
+                            <h5>Probability</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Subscription Likelihood</label>
+                                <div class="progress probability-bar">
+                                    <div id="yesBar" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <small class="form-text text-muted">Yes: <span id="yesProbability">0%</span></small>
+                            </div>
+                            <div class="mb-3">
+                                <div class="progress probability-bar">
+                                    <div id="noBar" class="progress-bar bg-danger" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <small class="form-text text-muted">No: <span id="noProbability">0%</span></small>
+                            </div>
+                        </div>
+
+                        <!-- Empty state -->
+                        <div id="emptyState" class="text-center p-4">
+                            <img src="https://via.placeholder.com/100" alt="Empty" class="img-fluid mb-3" width="100">
+                            <h5>No Prediction Yet</h5>
+                            <p class="text-muted">Fill out the form and submit to see prediction results.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Batch Processing Card -->
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Batch Processing</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="batchForm">
+                            <div class="mb-3">
+                                <label for="csvFile" class="form-label">Upload CSV File</label>
+                                <input class="form-control" type="file" id="csvFile" accept=".csv">
+                                <small class="form-text text-muted">Upload a CSV file with multiple records for batch prediction.</small>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-info">Process Batch</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer mt-5 py-3 bg-light">
+        <div class="container text-center">
+            <span class="text-muted">© 2025 Bank Marketing Prediction Tool. All rights reserved.</span>
+            <p><small>Powered by FastAPI</small></p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap & jQuery JavaScript -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        $(document).ready(function() {
+            // Predict single input
+            $('#predictionForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                // Show loading indicator
+                $('.loading').show();
+                $('#predictionResult').hide();
+                $('#emptyState').hide();
+                
+                // Collect form data
+                const formData = {};
+                $(this).serializeArray().forEach(function(item) {
+                    // Convert numeric values
+                    if (!isNaN(item.value) && item.name !== 'job' && 
+                        item.name !== 'marital' && item.name !== 'education' && 
+                        item.name !== 'default' && item.name !== 'housing' && 
+                        item.name !== 'loan' && item.name !== 'contact' && 
+                        item.name !== 'month' && item.name !== 'poutcome') {
+                        formData[item.name] = Number(item.value);
+                    } else {
+                        formData[item.name] = item.value;
+                    }
+                });
+                
+                // Send prediction request
+                $.ajax({
+                    url: '/predict',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(result) {
+                        // Hide loading indicator
+                        $('.loading').hide();
+                        
+                        // Display prediction result
+                        $('#predictionResult').show();
+                        
+                        if (result.prediction === 'yes') {
+                            $('#predictionResult').removeClass('no-prediction').addClass('yes-prediction');
+                            $('#resultTitle').text('Positive Prediction');
+                            $('#resultText').html('Customer is <strong>likely to subscribe</strong> to the term deposit.');
+                        } else {
+                            $('#predictionResult').removeClass('yes-prediction').addClass('no-prediction');
+                            $('#resultTitle').text('Negative Prediction');
+                            $('#resultText').html('Customer is <strong>not likely to subscribe</strong> to the term deposit.');
+                        }
+                        
+                        // Update probability bars
+                        const yesProb = (result.probability.yes * 100).toFixed(2);
+                        const noProb = (result.probability.no * 100).toFixed(2);
+                        
+                        $('#yesProbability').text(yesProb + '%');
+                        $('#noProbability').text(noProb + '%');
+                        
+                        $('#yesBar').css('width', yesProb + '%').attr('aria-valuenow', yesProb);
+                        $('#noBar').css('width', noProb + '%').attr('aria-valuenow', noProb);
+                    },
+                    error: function(xhr, status, error) {
+                        // Hide loading indicator
+                        $('.loading').hide();
+                        
+                        // Show error message
+                        $('#predictionResult').show().removeClass('yes-prediction').addClass('no-prediction');
+                        $('#resultTitle').text('Error');
+                        $('#resultText').text('An error occurred: ' + (xhr.responseJSON?.detail || error));
+                    }
+                });
+            });
+            
+            // Batch prediction
+            $('#batchForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                const fileInput = $('#csvFile')[0];
+                if (fileInput.files.length === 0) {
+                    alert('Please select a CSV file to upload.');
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                // Show loading indicator
+                $('.loading').show();
+                
+                $.ajax({
+                    url: '/batch-predict',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(result) {
+                        // Hide loading indicator
+                        $('.loading').hide();
+                        
+                        // Display batch results (could improve this by showing a table of results)
+                        alert('Batch processing complete! Processed ' + result.total_processed + ' records.');
+                    },
+                    error: function(xhr, status, error) {
+                        // Hide loading indicator
+                        $('.loading').hide();
+                        
+                        // Show error message
+                        alert('An error occurred during batch processing: ' + (xhr.responseJSON?.detail || error));
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

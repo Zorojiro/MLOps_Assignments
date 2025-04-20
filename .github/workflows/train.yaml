@@ -1,0 +1,54 @@
+name: Train and Upload Model
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run every Sunday at midnight
+  workflow_dispatch:
+    # For manual trigger
+
+env:
+  MODEL_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+  MODEL_PATH: models/bank_model.joblib
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Train model
+        run: |
+          cd kube
+          python main.py
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          
+      - name: Upload model to S3
+        run: |
+          aws s3 cp kube/bank_model.joblib s3://${{ env.MODEL_BUCKET }}/${{ env.MODEL_PATH }}
+          
+      - name: Notify model update
+        if: success()
+        run: |
+          echo "Model successfully trained and uploaded to S3"
+          # Optionally trigger the deploy workflow
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yaml/dispatches \
+            -d '{"ref":"main"}'
