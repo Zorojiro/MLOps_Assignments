@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-init-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: model-init
+        image: ${DOCKER_REGISTRY}/bank-marketing-app:${IMAGE_TAG}
+        command:
+        - "sh"
+        - "-c"
+        - "mkdir -p /mnt/models/bank-marketing && cp /app/modelserver/bank_model.joblib /mnt/models/bank-marketing/"
+        volumeMounts:
+        - name: model-storage
+          mountPath: /mnt/models
+      restartPolicy: Never
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: model-storage
+  backoffLimit: 4

@@ -1,0 +1,358 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: bank-marketing-pipeline-
+spec:
+  entrypoint: bank-marketing-pipeline
+  arguments:
+    parameters:
+    - name: data-path
+      value: ../kube/data/bank-full.csv
+    - name: test-size
+      value: "0.2"
+    - name: accuracy-threshold
+      value: "0.8"
+  templates:
+  - name: bank-marketing-pipeline
+    inputs:
+      parameters:
+      - name: data-path
+      - name: test-size
+      - name: accuracy-threshold
+    dag:
+      tasks:
+      - name: prepare-data
+        template: prepare-data
+        arguments:
+          parameters:
+          - name: data-path
+            value: "{{inputs.parameters.data-path}}"
+          - name: test-size
+            value: "{{inputs.parameters.test-size}}"
+            
+      - name: train-model
+        template: train-model
+        dependencies: [prepare-data]
+        arguments:
+          artifacts:
+          - name: train-data
+            from: "{{tasks.prepare-data.outputs.artifacts.train-data}}"
+            
+      - name: evaluate-model
+        template: evaluate-model
+        dependencies: [train-model]
+        arguments:
+          artifacts:
+          - name: model
+            from: "{{tasks.train-model.outputs.artifacts.model}}"
+          - name: test-data
+            from: "{{tasks.prepare-data.outputs.artifacts.test-data}}"
+            
+      - name: deploy-model
+        template: deploy-model
+        dependencies: [evaluate-model]
+        arguments:
+          parameters:
+          - name: accuracy-threshold
+            value: "{{inputs.parameters.accuracy-threshold}}"
+          artifacts:
+          - name: model
+            from: "{{tasks.train-model.outputs.artifacts.model}}"
+          - name: metrics
+            from: "{{tasks.evaluate-model.outputs.artifacts.metrics}}"
+
+  # Individual task templates
+  - name: prepare-data
+    inputs:
+      parameters:
+      - name: data-path
+      - name: test-size
+    container:
+      image: python:3.9
+      command: ["python", "-c"]
+      args:
+      - |
+        import pandas as pd
+        from sklearn.model_selection import train_test_split
+        import pickle
+        import os
+        
+        # Create output directories
+        os.makedirs("/tmp/output", exist_ok=True)
+        
+        print("Loading data from {{inputs.parameters.data-path}}")
+        data = pd.read_csv("{{inputs.parameters.data-path}}", delimiter=';')
+        
+        # Filter only the 16 specified features plus the target
+        feature_columns = [
+            'job', 'marital', 'education', 'default', 'housing', 'loan',
+            'contact', 'month', 'poutcome', 'age', 'balance', 'day',
+            'duration', 'campaign', 'pdays', 'previous', 'y'
+        ]
+        
+        # Select only the specified features
+        data = data[feature_columns]
+        
+        # Print feature information
+        print(f"Using only these {len(feature_columns)-1} features: {feature_columns[:-1]}")
+        
+        # Split features and target
+        X = data.drop('y', axis=1)
+        y = data['y'].map({'yes': 1, 'no': 0})
+        
+        # Split into train and test sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size={{inputs.parameters.test-size}}, random_state=42)
+        
+        # Save the datasets
+        train_data = pd.concat([X_train, y_train.rename('target')], axis=1)
+        test_data = pd.concat([X_test, y_test.rename('target')], axis=1)
+        
+        train_data.to_pickle("/tmp/output/train_data.pkl")
+        test_data.to_pickle("/tmp/output/test_data.pkl")
+        
+        print(f"Data prepared with {len(train_data)} training samples and {len(test_data)} test samples")
+    outputs:
+      artifacts:
+      - name: train-data
+        path: /tmp/output/train_data.pkl
+      - name: test-data
+        path: /tmp/output/test_data.pkl
+
+  - name: train-model
+    inputs:
+      artifacts:
+      - name: train-data
+        path: /tmp/input/train_data.pkl
+    container:
+      image: python:3.9
+      command: ["python", "-c"]
+      args:
+      - |
+        import pandas as pd
+        import numpy as np
+        import pickle
+        import joblib
+        import json
+        import os
+        from sklearn.preprocessing import StandardScaler, OneHotEncoder
+        from sklearn.compose import ColumnTransformer
+        from sklearn.pipeline import Pipeline
+        from sklearn.impute import SimpleImputer
+        from sklearn.ensemble import RandomForestClassifier
+        
+        # Create output directory
+        os.makedirs("/tmp/output", exist_ok=True)
+        
+        # Load training data
+        train_data = pd.read_pickle("/tmp/input/train_data.pkl")
+        X_train = train_data.drop('target', axis=1)
+        y_train = train_data['target']
+        
+        # Print feature information
+        print(f"Training with features: {X_train.columns.tolist()}")
+        
+        # Identify categorical and numerical columns
+        categorical_features = X_train.select_dtypes(include=['object']).columns
+        numerical_features = X_train.select_dtypes(include=['int64', 'float64']).columns
+        
+        # Create preprocessing pipelines
+        numerical_transformer = Pipeline(steps=[
+            ('imputer', SimpleImputer(strategy='median')),
+            ('scaler', StandardScaler())
+        ])
+        
+        categorical_transformer = Pipeline(steps=[
+            ('imputer', SimpleImputer(strategy='most_frequent')),
+            ('onehot', OneHotEncoder(handle_unknown='ignore'))
+        ])
+        
+        # Combine preprocessing steps
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', numerical_transformer, numerical_features),
+                ('cat', categorical_transformer, categorical_features)
+            ])
+        
+        # Create the model pipeline
+        model = Pipeline(steps=[
+            ('preprocessor', preprocessor),
+            ('classifier', RandomForestClassifier(n_estimators=100, random_state=42))
+        ])
+        
+        # Train the model
+        print("Training model...")
+        model.fit(X_train, y_train)
+        
+        # Save the model
+        joblib.dump(model, "/tmp/output/model.joblib")
+        print("Model saved to /tmp/output/model.joblib")
+        
+        # Record metadata
+        metadata = {
+            "framework": "scikit-learn",
+            "model_type": "RandomForestClassifier",
+            "created_at": pd.Timestamp.now().isoformat(),
+            "features_used": X_train.columns.tolist()
+        }
+        
+        with open("/tmp/output/metadata.json", "w") as f:
+            json.dump(metadata, f)
+    outputs:
+      artifacts:
+      - name: model
+        path: /tmp/output/model.joblib
+      - name: metadata
+        path: /tmp/output/metadata.json
+
+  - name: evaluate-model
+    inputs:
+      artifacts:
+      - name: model
+        path: /tmp/input/model.joblib
+      - name: test-data
+        path: /tmp/input/test_data.pkl
+    container:
+      image: python:3.9
+      command: ["python", "-c"]
+      args:
+      - |
+        import pandas as pd
+        import numpy as np
+        import joblib
+        import json
+        import os
+        import matplotlib.pyplot as plt
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+        from sklearn.metrics import confusion_matrix, roc_curve
+        
+        # Create output directory
+        os.makedirs("/tmp/output", exist_ok=True)
+        
+        # Load model and test data
+        model = joblib.load("/tmp/input/model.joblib")
+        test_data = pd.read_pickle("/tmp/input/test_data.pkl")
+        
+        X_test = test_data.drop('target', axis=1)
+        y_test = test_data['target']
+        
+        # Print feature information
+        print(f"Evaluating model with features: {X_test.columns.tolist()}")
+        
+        # Make predictions
+        y_pred = model.predict(X_test)
+        y_prob = model.predict_proba(X_test)[:, 1]
+        
+        # Calculate metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        roc_auc = roc_auc_score(y_test, y_prob)
+        
+        # Record metrics
+        metrics = {
+            "accuracy": float(accuracy),
+            "precision": float(precision),
+            "recall": float(recall),
+            "f1_score": float(f1),
+            "roc_auc": float(roc_auc)
+        }
+        
+        print("Model Evaluation Metrics:")
+        for metric_name, metric_value in metrics.items():
+            print(f"{metric_name}: {metric_value:.4f}")
+        
+        with open("/tmp/output/metrics.json", "w") as f:
+            json.dump(metrics, f)
+        
+        # Create evaluation plots
+        plt.figure(figsize=(10, 8))
+        
+        # 1. Confusion Matrix
+        cm = confusion_matrix(y_test, y_pred)
+        plt.subplot(2, 2, 1)
+        plt.imshow(cm, cmap=plt.cm.Blues)
+        plt.title("Confusion Matrix")
+        plt.colorbar()
+        plt.ylabel("True Label")
+        plt.xlabel("Predicted Label")
+        plt.xticks([0, 1], ['No', 'Yes'])
+        plt.yticks([0, 1], ['No', 'Yes'])
+        
+        # 2. ROC Curve
+        fpr, tpr, _ = roc_curve(y_test, y_prob)
+        plt.subplot(2, 2, 2)
+        plt.plot(fpr, tpr, label=f'ROC Curve (AUC = {roc_auc:.2f})')
+        plt.plot([0, 1], [0, 1], 'k--')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('ROC Curve')
+        plt.legend()
+        
+        # Save the plots
+        plt.tight_layout()
+        plt.savefig("/tmp/output/evaluation_plots.png")
+    outputs:
+      artifacts:
+      - name: metrics
+        path: /tmp/output/metrics.json
+      - name: plots
+        path: /tmp/output/evaluation_plots.png
+
+  - name: deploy-model
+    inputs:
+      parameters:
+      - name: accuracy-threshold
+      artifacts:
+      - name: model
+        path: /tmp/input/model.joblib
+      - name: metrics
+        path: /tmp/input/metrics.json
+    container:
+      image: bitnami/kubectl:latest
+      command: ["/bin/bash", "-c"]
+      args:
+      - |
+        set -e
+        
+        # Check if the model meets the threshold
+        ACCURACY=$(cat /tmp/input/metrics.json | grep -o '"accuracy":[^,}]*' | cut -d':' -f2)
+        THRESHOLD={{inputs.parameters.accuracy-threshold}}
+        
+        echo "Model accuracy: $ACCURACY"
+        echo "Threshold: $THRESHOLD"
+        
+        if (( $(echo "$ACCURACY < $THRESHOLD" | bc -l) )); then
+          echo "Model accuracy below threshold. Skipping deployment."
+          exit 0
+        fi
+        
+        echo "Model meets accuracy threshold. Deploying..."
+        
+        # Create KServe deployment YAML
+        cat > /tmp/kserve.yaml << EOF
+        apiVersion: "serving.kserve.io/v1beta1"
+        kind: "InferenceService"
+        metadata:
+          name: "bank-marketing-model"
+          annotations:
+            serving.kserve.io/deploymentMode: ModelMesh
+            serving.kserve.io/modelClass: sklearn
+        spec:
+          predictor:
+            model:
+              modelFormat:
+                name: sklearn
+              storageUri: "s3://mlops-models/bank-marketing/"
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+        EOF
+        
+        # Apply the KServe deployment
+        kubectl apply -f /tmp/kserve.yaml
+        echo "Model deployed successfully"

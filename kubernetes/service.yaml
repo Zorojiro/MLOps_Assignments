@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bank-prediction-service
+  labels:
+    app: bank-prediction
+spec:
+  selector:
+    app: bank-prediction
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP

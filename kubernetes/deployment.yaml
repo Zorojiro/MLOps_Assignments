@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bank-marketing-app
+  labels:
+    app: bank-marketing-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bank-marketing-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: bank-marketing-app
+    spec:
+      containers:
+      - name: bank-marketing-app
+        image: ${DOCKER_REGISTRY}/bank-marketing-app:${IMAGE_TAG}
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        ports:
+        - containerPort: 8000
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        env:
+        - name: LOG_LEVEL
+          value: "info"
+        - name: WORKERS
+          value: "4"
+        - name: MAX_WORKERS
+          value: "8"

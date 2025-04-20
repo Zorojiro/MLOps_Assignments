@@ -1,0 +1,56 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: |
+          ghcr.io/${{ github.repository }}/bank-marketing-app:${{ github.sha }}
+          ghcr.io/${{ github.repository }}/bank-marketing-app:latest
+
+    - name: Set up Kubeconfig for GitHub Actions
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig
+        chmod 600 kubeconfig
+        export KUBECONFIG=./kubeconfig
+
+    - name: Update Kubernetes deployment
+      if: github.event_name != 'pull_request'
+      run: |
+        sed -i "s|\${DOCKER_REGISTRY}|ghcr.io/${{ github.repository }}|g" kubernetes/deployment.yaml
+        sed -i "s|\${IMAGE_TAG}|${{ github.sha }}|g" kubernetes/deployment.yaml
+        sed -i "s|\${DOCKER_REGISTRY}|ghcr.io/${{ github.repository }}|g" kubernetes/model-init-job.yaml
+        sed -i "s|\${IMAGE_TAG}|${{ github.sha }}|g" kubernetes/model-init-job.yaml
+        kubectl apply -f kubernetes/model-storage.yaml
+        kubectl apply -f kubernetes/model-init-job.yaml
+        kubectl apply -f kubernetes/deployment.yaml
+        kubectl apply -f kubernetes/service.yaml
+        kubectl apply -f kubernetes/ingress.yaml
