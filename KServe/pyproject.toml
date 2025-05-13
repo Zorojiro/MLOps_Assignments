@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "disease-prediction"
+version = "0.1.0"
+description = ""
+authors = ["Sujit <sujitkumar.patil@syngenta.com>"]
+readme = "Readme.md"
+
+[tool.poetry.dependencies]
+python = "3.11.9"
+pandas = "^2.2.2"
+scikit-learn = "^1.5.1"
+matplotlib = "^3.9.2"
+kserve = "^0.13.1"
+joblib = "^1.4.2"
+flask = "^3.0.3"
+flask-restplus = "^0.13.0"
+flask-restx = "^1.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

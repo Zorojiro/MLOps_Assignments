@@ -1,0 +1,20 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: disease-prediction
+  namespace: kserve-test
+spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: "232822037724.dkr.ecr.eu-central-1.amazonaws.com/insights_engine_ecr:disease_prediction@sha256:95195c2aa56bfadab0aad1dc9a12f98abcd0e7a569029aa5e53cb41aa6b9a1fd"
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 0.5
+            memory: 1Gi
+          requests:
+            cpu: 0.25
+            memory: 0.5Gi
+    imagePullSecrets:
+      - name: regcred
